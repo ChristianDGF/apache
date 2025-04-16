@@ -2,16 +2,24 @@ plugins {
     id 'java'
     id 'application'
     id 'com.google.protobuf' version '0.9.2'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
 group = 'org.example'
 version = '1.0-SNAPSHOT'
 
-mainClassName = "parcial3.main.Main"
+java {
+    sourceCompatibility = '21'
+}
 
 repositories {
     mavenCentral()
 }
+
+application{
+    mainClass = "parcial3.main.Main"
+}
+
 
 dependencies {
     testImplementation platform('org.junit:junit-bom:5.10.0')
@@ -50,6 +58,16 @@ dependencies {
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.15.4'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.4'
 
+}
+
+shadowJar{
+    archiveBaseName.set("app")
+    archiveClassifier.set('')
+    archiveVersion.set('')
+}
+
+task stage {
+    dependsOn shadowJar
 }
 
 protobuf {
