@@ -71,7 +71,7 @@ else
 fi
 sudo systemctl start apache2
 
-cd ~/ApacheReady/proyecto-final
+cd ~/apache/proyecto
 chmod +x gradlew
 
 # 🔹 Ejecutar creación del fat JAR con la variable de entorno
