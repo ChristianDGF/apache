@@ -1,49 +1,60 @@
 #!/usr/bin/env bash
-echo "Instalando estructura basica para clase virtualhost y proxy reverso"
+set -e
 
-# Habilitando la memoria de intercambio.
+# ——— Configuración inicial ———
+DOMINIO="parcial3.duckdns.org"
+EMAIL="cristianjavier0303@gmail.com"
+REPO_URL="https://github.com/ChristianDGF/parcial-3.git"
+APP_DIR="$HOME/parcial-3"
+
+# (Si aún no lo has hecho) Conéctate al servidor:
+# ssh -i e3.pem ubuntu@3.236.30.6
+
+# ——— 1. Crear swap ———
 sudo dd if=/dev/zero of=/swapfile count=2048 bs=1MiB
 sudo chmod 600 /swapfile
 sudo mkswap /swapfile
 sudo swapon /swapfile
-sudo cp /etc/fstab /etc/fstab.bak
 echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 
-# Instalando los software necesarios
-sudo apt update && sudo apt -y install apache2 certbot python3-certbot-apache unzip zip
-sudo a2enmod ssl
-sudo a2enmod proxy
-sudo a2enmod proxy_http
+# ——— 2. Instalar paquetes base ———
+sudo apt update
+sudo apt -y install apache2 certbot python3-certbot-apache unzip zip curl
+
+# ——— 3. Habilitar módulos en Apache ———
+sudo a2enmod ssl proxy proxy_http
 sudo systemctl restart apache2
 
-# Instalando sdkman y Java
+# ——— 4. Instalar SDKMAN y Java 21 ———
 curl -s "https://get.sdkman.io" | bash
 source "$HOME/.sdkman/bin/sdkman-init.sh"
 sdk install java 21.0.3-tem
 
-# Subiendo el servicio de Apache
-sudo service apache2 start
+# ——— 5. Clonar repositorio de la aplicación ———
+git clone "$REPO_URL" "$APP_DIR"
+cd "$APP_DIR"
 
-# Clonando el proyecto
-cd ~/
-git clone https://github.com/ChristianDGF/apache.git
-cd ~/apache/proyecto
+# ——— 6. Generar certificado SSL ANTES de crear el VirtualHost ———
+sudo systemctl stop apache2
+sudo certbot certonly --standalone \
+  --non-interactive --agree-tos \
+  -m "$EMAIL" \
+  -d "$DOMINIO"
+sudo systemctl start apache2
 
-# Configuración de VirtualHost
-sudo bash -c 'cat > /etc/apache2/sites-available/seguro.conf << EOF
+# ——— 7. Crear la configuración de Apache ———
+sudo tee /etc/apache2/sites-available/seguro.conf > /dev/null << EOF
 <VirtualHost *:80>
-    ServerName app.christiangutierrez.tech
-    Redirect permanent / https://app.christiangutierrez.tech
+    ServerName $DOMINIO
+    Redirect permanent / https://$DOMINIO
 </VirtualHost>
 
 <VirtualHost *:443>
-    ServerName app.christiangutierrez.tech
-
-    DocumentRoot /var/www/html
+    ServerName $DOMINIO
 
     SSLEngine on
-    SSLCertificateFile /etc/letsencrypt/live/app.christiangutierrez.tech/fullchain.pem
-    SSLCertificateKeyFile /etc/letsencrypt/live/app.christiangutierrez.tech/privkey.pem
+    SSLCertificateFile /etc/letsencrypt/live/$DOMINIO/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/$DOMINIO/privkey.pem
 
     ProxyPass / http://localhost:7000/
     ProxyPassReverse / http://localhost:7000/
@@ -53,35 +64,27 @@ sudo bash -c 'cat > /etc/apache2/sites-available/seguro.conf << EOF
         Require all granted
     </Directory>
 </VirtualHost>
-EOF'
+EOF
 
+# ——— 8. Habilitar sitio y recargar Apache ———
 sudo a2ensite seguro.conf
+sudo apachectl configtest   # Debe devolver "Syntax OK"
 sudo systemctl reload apache2
 
-# Certificado SSL
-DOMINIO="app.christiangutierrez.tech"
-EMAIL="christiandg1308@gmail.com"
-
-sudo systemctl stop apache2
-if [ ! -f "/etc/letsencrypt/live/$DOMINIO/cert.pem" ]; then
-    echo "Generando certificado SSL para $DOMINIO..."
-    sudo certbot certonly --standalone -m $EMAIL -d $DOMINIO --agree-tos --non-interactive
-else
-    echo "Certificado para $DOMINIO ya existe."
-fi
-sudo systemctl start apache2
-
-cd ~/apache/proyecto
+# ——— 9. Construir y arrancar la aplicación ———
 chmod +x gradlew
-
-# 🔹 Ejecutar creación del fat JAR con la variable de entorno
-export MONGODB_URL="mongodb+srv://christiandg1308:VOoGg1gGvu3KWwNm@cluster0.dobb5qz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 ./gradlew shadowjar
+nohup java -jar "$APP_DIR/build/libs/app.jar" \
+  > "$APP_DIR/build/libs/salida.txt" \
+  2> "$APP_DIR/build/libs/error.txt" &
 
-# 🔹 Iniciar la app en segundo plano con la variable de entorno
-nohup env MONGODB_URL="mongodb+srv://christiandg1308:VOoGg1gGvu3KWwNm@cluster0.dobb5qz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0" \
-     java -jar build/libs/app.jar > build/libs/salida.txt 2> build/libs/error.txt &
+# ——— 10. Verificaciones y firewall ———
+ps aux | grep app.jar
+curl -I http://localhost:7000
 
-# 🔹 Asegurar puerto 50051 esté accesible (gRPC)
-echo "Asegurando acceso al puerto 9090 para gRPC..."
-sudo ufw allow 9090/tcp  # O equivalente para tu entorno si no usas UFW#!/usr/bin/env bash
+sudo ufw allow 80
+sudo ufw allow 443
+sudo ufw allow 7000
+sudo ufw --force enable
+
+echo "¡Despliegue completado! ✔️"
