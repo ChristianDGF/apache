@@ -1,0 +1,75 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'com.google.protobuf' version '0.9.2'
+}
+
+group = 'org.example'
+version = '1.0-SNAPSHOT'
+
+mainClassName = "parcial3.main.Main"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+
+    // Javalin y Thymeleaf
+    implementation("io.javalin:javalin:6.4.0")
+    implementation 'io.javalin:javalin-rendering:6.4.0'
+    implementation 'org.thymeleaf:thymeleaf:3.1.2.RELEASE'
+
+    // Spring Framework (para Spring Data Commons)
+    implementation 'org.springframework.data:spring-data-commons:3.2.0'
+
+    // MongoDB y Logging
+    implementation 'org.mongodb:mongodb-driver-sync:4.11.1'
+    implementation 'org.slf4j:slf4j-api:2.0.7'
+    implementation 'ch.qos.logback:logback-classic:1.4.11'
+    implementation 'org.mongodb:bson:4.9.0'
+
+    // Jackson
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+
+    // JWT (para la autenticación de las APIs REST)
+    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+    implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
+    implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
+    // gRPC y Protobuf
+    implementation 'io.grpc:grpc-netty-shaded:1.46.0'
+    implementation 'io.grpc:grpc-protobuf:1.46.0'
+    implementation 'io.grpc:grpc-stub:1.46.0'
+    implementation 'com.google.protobuf:protobuf-java:3.21.12'
+
+    // Para que no falle la anotacion @Generated
+    implementation 'javax.annotation:javax.annotation-api:1.3.2'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.15.4'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.4'
+
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.21.12"
+    }
+    plugins {
+        grpc {
+            artifact = "io.grpc:protoc-gen-grpc-java:1.46.0"
+        }
+    }
+    generateProtoTasks {
+        all().each { task ->
+            task.plugins {
+                grpc {}
+            }
+        }
+    }
+}
+
+test {
+    useJUnitPlatform()
+}
