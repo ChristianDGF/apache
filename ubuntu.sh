@@ -2,7 +2,7 @@
 set -e
 
 # ——— Configuración inicial ———
-DOMINIO="parcial3.duckdns.org"
+DOMINIO="konohalinks.duckdns.org"
 EMAIL="cristianjavier0303@gmail.com"
 REPO_URL="https://github.com/ChristianDGF/parcial-3.git"
 APP_DIR="$HOME/parcial-3"
